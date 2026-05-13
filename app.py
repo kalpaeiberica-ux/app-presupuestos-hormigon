@@ -22,7 +22,6 @@ ARCHIVO_EXCEL = "historico_presupuestos.xlsx"
 os.makedirs(CARPETA_PDF, exist_ok=True)
 
 LOGOS_POSIBLES = ["logo.png", "logo.jpg", "logo.jpeg"]
-
 LOGO_DERECHA_1 = "logo_derecha_1.png"
 LOGO_DERECHA_2 = "logo_derecha_2.png"
 
@@ -144,15 +143,15 @@ def crear_tabla_hormigon():
 
 def crear_tabla_otros_conceptos():
     datos = [
-        ["002.001", "INCREMENTO ARIDO 14mm", "m3", 0.00, 4.00],
-        ["002.002", "INCREMENTO CONSISTENCIA FLUIDA", "m3", 0.00, 4.00],
-        ["002.003", "INCREMENTO CONSISTENCIA LIQUIDA", "m3", 0.00, 6.00],
-        ["002.004", "INCREMENTO HIDROFUGO", "m3", 0.00, 5.00],
-        ["002.005", "INCREMENTO CARGA INCOMPLETA HASTA 6m3", "ud", 0.00, 17.00],
-        ["002.006", "INCREMENTO TIEMPO EXCESO DESCARGA", "h", 0.00, 60.00],
-        ["002.007", "INCREMENTO FIBRA POLIPROPILENO 12 mm", "m3", 0.00, 5.00],
-        ["002.008", "INCREMENTO RETARDANTE 12 Hrs", "m3", 0.00, 3.00],
-        ["002.009", "INCREMENTO RETARDANTE 24 Hrs", "m3", 0.00, 6.00],
+        ["002.001", "INCREMENTO ARIDO 14mm", "m3", 1.00, 4.00],
+        ["002.002", "INCREMENTO CONSISTENCIA FLUIDA", "m3", 1.00, 4.00],
+        ["002.003", "INCREMENTO CONSISTENCIA LIQUIDA", "m3", 1.00, 6.00],
+        ["002.004", "INCREMENTO HIDROFUGO", "m3", 1.00, 5.00],
+        ["002.005", "INCREMENTO CARGA INCOMPLETA HASTA 6m3", "ud", 1.00, 17.00],
+        ["002.006", "INCREMENTO TIEMPO EXCESO DESCARGA", "h", 1.00, 60.00],
+        ["002.007", "INCREMENTO FIBRA POLIPROPILENO 12 mm", "m3", 1.00, 5.00],
+        ["002.008", "INCREMENTO RETARDANTE 12 Hrs", "m3", 1.00, 3.00],
+        ["002.009", "INCREMENTO RETARDANTE 24 Hrs", "m3", 1.00, 6.00],
     ]
 
     return pd.DataFrame(
@@ -222,9 +221,9 @@ def guardar_en_excel(resumen, partidas):
 class PDFPresupuesto(FPDF):
 
     def footer(self):
-        self.set_y(-15)
+        self.set_y(-12)
         self.set_font("Arial", "", 8)
-        self.cell(0, 10, f"Pagina {self.page_no()}", align="C")
+        self.cell(0, 8, f"Pagina {self.page_no()}", align="C")
 
 
 def comprobar_salto_pagina(pdf, altura_necesaria):
@@ -232,7 +231,83 @@ def comprobar_salto_pagina(pdf, altura_necesaria):
         pdf.add_page()
 
 
-def escribir_texto_largo(pdf, texto, ancho=185, alto=4):
+def insertar_logos(pdf):
+    logo = buscar_logo()
+    logo_dcha_1 = buscar_logo_derecha_1()
+    logo_dcha_2 = buscar_logo_derecha_2()
+
+    # Logo principal izquierda: 9 cm ancho x 4 cm alto = 90 mm x 40 mm
+    if logo:
+        try:
+            pdf.image(logo, x=10, y=3, w=90, h=40)
+        except Exception:
+            pass
+
+    # Logo_1: izquierda de los logos derechos
+    # Medida: 1,5 cm ancho x 3 cm alto = 15 mm x 30 mm
+    if logo_dcha_1:
+        try:
+            pdf.image(logo_dcha_1, x=160, y=3, w=15, h=30)
+        except Exception:
+            pass
+
+    # Logo_2: derecha de los logos derechos
+    # Medida: 1,5 cm ancho x 1,5 cm alto = 15 mm x 15 mm
+    if logo_dcha_2:
+        try:
+            pdf.image(logo_dcha_2, x=180, y=3, w=15, h=15)
+        except Exception:
+            pass
+
+
+def insertar_cabecera(pdf, datos):
+    insertar_logos(pdf)
+
+    pdf.set_xy(115, 53)
+    pdf.set_font("Arial", "B", 9)
+    pdf.cell(80, 5, texto_seguro(datos["Cliente"]), ln=True)
+
+    pdf.set_x(115)
+    pdf.set_font("Arial", "", 8)
+
+    if datos["Direccion cliente"].strip():
+        pdf.cell(80, 5, texto_seguro(datos["Direccion cliente"]), ln=True)
+        pdf.set_x(115)
+
+    if datos["Poblacion cliente"].strip():
+        pdf.cell(80, 5, texto_seguro(datos["Poblacion cliente"]), ln=True)
+        pdf.set_x(115)
+
+    pdf.cell(80, 5, f"Telf: {texto_seguro(datos['Telefono cliente'])}", ln=True)
+
+    pdf.set_x(115)
+    pdf.cell(80, 5, f"C.I.F./N.I.F.: {texto_seguro(datos['CIF/NIF cliente'])}", ln=True)
+
+    pdf.set_xy(10, 83)
+    pdf.set_fill_color(28, 42, 90)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Arial", "B", 15)
+
+    texto_titulo = "P R E S U P U E S T O"
+    ancho_titulo = pdf.get_string_width(texto_titulo) + 6
+    pdf.cell(ancho_titulo, 8, texto_titulo, ln=True, align="L", fill=True)
+
+    pdf.set_text_color(0, 0, 0)
+
+    pdf.set_x(10)
+    pdf.set_font("Arial", "B", 9)
+    linea_presupuesto = f"{datos['Nº Presupuesto']} - {datos['Obra']} - {datos['Localidad obra']}"
+    pdf.cell(0, 6, texto_seguro(linea_presupuesto), ln=True)
+
+    pdf.set_x(10)
+    pdf.set_font("Arial", "", 8)
+    pdf.cell(0, 5, f"Fecha: {texto_seguro(datos['Fecha'])}", ln=True)
+
+    pdf.ln(3)
+    pdf.set_x(10)
+
+
+def escribir_texto_largo(pdf, texto, ancho=190, alto=4):
     texto = texto_seguro(texto)
 
     if texto.strip() == "":
@@ -247,7 +322,7 @@ def escribir_texto_largo(pdf, texto, ancho=185, alto=4):
         else:
             lineas = textwrap.wrap(
                 parrafo,
-                width=110,
+                width=118,
                 break_long_words=True,
                 break_on_hyphens=True
             )
@@ -258,6 +333,19 @@ def escribir_texto_largo(pdf, texto, ancho=185, alto=4):
                 pdf.multi_cell(ancho, alto, linea)
 
 
+def escribir_cabecera_tabla(pdf):
+    pdf.set_font("Arial", "B", 8)
+    pdf.set_fill_color(230, 230, 230)
+
+    pdf.cell(22, 7, "Codigo", border=1, align="C", fill=True)
+    pdf.cell(83, 7, "Concepto", border=1, align="C", fill=True)
+    pdf.cell(13, 7, "Ud.", border=1, align="C", fill=True)
+    pdf.cell(24, 7, "Cantidad", border=1, align="C", fill=True)
+    pdf.cell(24, 7, "Precio/ud.", border=1, align="C", fill=True)
+    pdf.cell(24, 7, "Importe", border=1, align="C", fill=True)
+    pdf.ln()
+
+
 def escribir_fila_tabla(pdf, codigo, concepto, ud, cantidad, precio, importe):
     codigo = texto_seguro(codigo)
     concepto = texto_seguro(concepto)
@@ -265,7 +353,7 @@ def escribir_fila_tabla(pdf, codigo, concepto, ud, cantidad, precio, importe):
 
     concepto_lineas = textwrap.wrap(
         concepto,
-        width=48,
+        width=50,
         break_long_words=True,
         break_on_hyphens=True
     )
@@ -278,28 +366,24 @@ def escribir_fila_tabla(pdf, codigo, concepto, ud, cantidad, precio, importe):
 
     comprobar_salto_pagina(pdf, alto_fila + 5)
 
-    x = pdf.get_x()
+    x = 10
     y = pdf.get_y()
 
+    pdf.set_x(10)
     pdf.set_font("Arial", "", 8)
 
-    pdf.rect(x, y, 22, alto_fila)
-    pdf.rect(x + 22, y, 82, alto_fila)
-    pdf.rect(x + 104, y, 14, alto_fila)
-    pdf.rect(x + 118, y, 24, alto_fila)
-    pdf.rect(x + 142, y, 24, alto_fila)
-    pdf.rect(x + 166, y, 24, alto_fila)
+    # Bordes de partidas eliminados. Se mantienen posiciones de columnas.
 
     pdf.set_xy(x + 1, y + 1)
     pdf.cell(20, 5, codigo)
 
     pdf.set_xy(x + 23, y + 1)
     for linea in concepto_lineas:
-        pdf.cell(80, alto_linea, linea, ln=True)
+        pdf.cell(81, alto_linea, linea, ln=True)
         pdf.set_x(x + 23)
 
-    pdf.set_xy(x + 105, y + 1)
-    pdf.cell(12, 5, ud, align="C")
+    pdf.set_xy(x + 106, y + 1)
+    pdf.cell(11, 5, ud, align="C")
 
     pdf.set_xy(x + 119, y + 1)
     pdf.cell(22, 5, formato_numero(cantidad), align="R")
@@ -310,66 +394,41 @@ def escribir_fila_tabla(pdf, codigo, concepto, ud, cantidad, precio, importe):
     pdf.set_xy(x + 167, y + 1)
     pdf.cell(22, 5, formato_numero(importe), align="R")
 
-    pdf.set_xy(x, y + alto_fila)
+    pdf.set_xy(10, y + alto_fila)
 
 
-def insertar_cabecera_pdf(pdf, logo, datos=None, mostrar_cliente=True):
-    """
-    Logo principal superior izquierdo:
-    8,5 cm x 3,5 cm = 85 mm x 35 mm
+def escribir_totales(pdf, base_imponible, iva_porcentaje, iva_importe, total_presupuesto, descuento_porcentaje, descuento_importe):
+    comprobar_salto_pagina(pdf, 30)
 
-    Logos derechos:
-    2 cm ancho x 3 cm alto = 20 mm x 30 mm
-    """
+    pdf.ln(4)
+    pdf.set_x(10)
 
-    logo_dcha_1 = buscar_logo_derecha_1()
-    logo_dcha_2 = buscar_logo_derecha_2()
+    pdf.set_font("Arial", "B", 8)
+    pdf.set_fill_color(230, 230, 230)
 
-    # Logo principal izquierda
-    if logo:
-        try:
-            pdf.image(logo, x=10, y=8, w=85, h=35)
-        except:
-            pdf.set_xy(10, 10)
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(85, 8, "HITAMARIN IBERICA S.L.U.", ln=True)
-    else:
-        pdf.set_xy(10, 10)
-        pdf.set_font("Arial", "B", 14)
-        pdf.cell(85, 8, "HITAMARIN IBERICA S.L.U.", ln=True)
+    pdf.cell(45, 6, "Base imponible", border=1, align="C", fill=True)
+    pdf.cell(25, 6, "IVA %", border=1, align="C", fill=True)
+    pdf.cell(40, 6, "Importe IVA", border=1, align="C", fill=True)
+    pdf.cell(80, 6, "Total presupuesto", border=1, align="C", fill=True)
+    pdf.ln()
 
-    # Logo derecho 1: 2 cm x 3 cm
-    if logo_dcha_1:
-        try:
-            pdf.image(logo_dcha_1, x=150, y=10, w=20, h=30)
-        except:
-            pass
+    pdf.set_x(10)
+    pdf.set_font("Arial", "B", 9)
 
-    # Logo derecho 2: 2 cm x 3 cm
-    if logo_dcha_2:
-        try:
-            pdf.image(logo_dcha_2, x=175, y=10, w=20, h=30)
-        except:
-            pass
+    pdf.cell(45, 7, formato_numero(base_imponible), border=1, align="R")
+    pdf.cell(25, 7, formato_numero(iva_porcentaje), border=1, align="R")
+    pdf.cell(40, 7, formato_numero(iva_importe), border=1, align="R")
+    pdf.cell(80, 7, formato_numero(total_presupuesto), border=1, align="R")
+    pdf.ln(8)
 
-    # Datos del cliente bajados aproximadamente 6 cm desde el margen superior
-    if datos and mostrar_cliente:
-        pdf.set_xy(115, 60)
-        pdf.set_font("Arial", "B", 9)
-        pdf.cell(80, 5, texto_seguro(datos["Cliente"]), ln=True)
-
-        pdf.set_x(115)
+    if descuento_porcentaje > 0:
+        pdf.set_x(10)
         pdf.set_font("Arial", "", 8)
-        pdf.cell(80, 5, texto_seguro(datos["Direccion cliente"]), ln=True)
-
-        pdf.set_x(115)
-        pdf.cell(80, 5, texto_seguro(datos["Poblacion cliente"]), ln=True)
-
-        pdf.set_x(115)
-        pdf.cell(80, 5, f"Telf: {texto_seguro(datos['Telefono cliente'])}", ln=True)
-
-        pdf.set_x(115)
-        pdf.cell(80, 5, f"C.I.F./N.I.F.: {texto_seguro(datos['CIF/NIF cliente'])}", ln=True)
+        pdf.cell(45, 6, "Descuento", border=1, align="C")
+        pdf.cell(25, 6, formato_numero(descuento_porcentaje) + " %", border=1, align="R")
+        pdf.cell(40, 6, formato_numero(descuento_importe), border=1, align="R")
+        pdf.cell(80, 6, "", border=1, align="R")
+        pdf.ln(8)
 
 
 def generar_pdf(datos, partidas):
@@ -379,73 +438,12 @@ def generar_pdf(datos, partidas):
     nombre_pdf = f"{numero_archivo}_{cliente_archivo}.pdf"
     ruta_pdf = os.path.join(CARPETA_PDF, nombre_pdf)
 
-    logo = buscar_logo()
-
     pdf = PDFPresupuesto()
     pdf.set_auto_page_break(auto=True, margin=15)
+
     pdf.add_page()
-
-    # =====================================================
-    # PRIMERA PAGINA - CABECERA
-    # =====================================================
-
-    insertar_cabecera_pdf(pdf, logo, datos, mostrar_cliente=True)
-
-    # Titulo PRESUPUESTO con fondo azul solo sobre el texto
-    pdf.set_y(50)
-    pdf.set_x(10)
-
-    pdf.set_fill_color(28, 42, 90)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font("Arial", "B", 16)
-
-    texto_titulo = "P R E S U P U E S T O"
-    ancho_franja_presupuesto = pdf.get_string_width(texto_titulo) + 6
-
-    pdf.cell(
-        ancho_franja_presupuesto,
-        9,
-        texto_titulo,
-        ln=True,
-        align="L",
-        fill=True
-    )
-
-    pdf.set_text_color(0, 0, 0)
-
-    # Espacio para que no se pise con los datos del cliente
-    pdf.ln(30)
-    pdf.set_x(10)
-
-    pdf.set_font("Arial", "B", 10)
-    linea_presupuesto = f"{datos['Nº Presupuesto']} - {datos['Obra']} - {datos['Localidad obra']}"
-    pdf.cell(0, 7, texto_seguro(linea_presupuesto), ln=True)
-
-    pdf.set_x(10)
-    pdf.set_font("Arial", "", 9)
-    pdf.cell(0, 6, f"Fecha: {texto_seguro(datos['Fecha'])}", ln=True)
-
-    pdf.ln(3)
-    pdf.set_x(10)
-
-    # =====================================================
-    # TABLA DE PARTIDAS
-    # =====================================================
-
-    pdf.set_font("Arial", "B", 8)
-    pdf.set_fill_color(230, 230, 230)
-
-    pdf.cell(22, 7, "Codigo", border=1, align="C", fill=True)
-    pdf.cell(82, 7, "Concepto", border=1, align="C", fill=True)
-    pdf.cell(14, 7, "Ud.", border=1, align="C", fill=True)
-    pdf.cell(24, 7, "Cantidad", border=1, align="C", fill=True)
-    pdf.cell(24, 7, "Precio/ud.", border=1, align="C", fill=True)
-    pdf.cell(24, 7, "Importe", border=1, align="C", fill=True)
-    pdf.ln()
-
-    # =====================================================
-    # CAPITULOS FIJOS
-    # =====================================================
+    insertar_cabecera(pdf, datos)
+    escribir_cabecera_tabla(pdf)
 
     total_base = 0
 
@@ -455,12 +453,10 @@ def generar_pdf(datos, partidas):
     ]
 
     for numero_capitulo, capitulo in capitulos_fijos:
-
         grupo = partidas[partidas["Capitulo"] == capitulo]
 
         comprobar_salto_pagina(pdf, 12)
         pdf.set_x(10)
-
         pdf.set_font("Arial", "B", 9)
         pdf.cell(0, 7, f"{numero_capitulo} Capitulo: {capitulo}", ln=True)
 
@@ -470,8 +466,6 @@ def generar_pdf(datos, partidas):
             importe = float(fila["Importe"])
             total_capitulo += importe
             total_base += importe
-
-            pdf.set_x(10)
 
             escribir_fila_tabla(
                 pdf,
@@ -483,17 +477,12 @@ def generar_pdf(datos, partidas):
                 importe
             )
 
-        comprobar_salto_pagina(pdf, 10)
+        comprobar_salto_pagina(pdf, 9)
         pdf.set_x(10)
-
-        pdf.set_font("Arial", "B", 9)
-        pdf.cell(166, 7, "Importe del capitulo:", align="R")
-        pdf.cell(24, 7, formato_numero(total_capitulo), align="R")
-        pdf.ln(9)
-
-    # =====================================================
-    # TOTALES
-    # =====================================================
+        pdf.set_font("Arial", "B", 8)
+        pdf.cell(166, 6, "Importe del capitulo:", align="R")
+        pdf.cell(24, 6, formato_numero(total_capitulo), align="R")
+        pdf.ln(7)
 
     descuento_porcentaje = float(datos["Dto %"])
     iva_porcentaje = float(datos["IVA %"])
@@ -503,66 +492,28 @@ def generar_pdf(datos, partidas):
     iva_importe = base_imponible * iva_porcentaje / 100
     total_presupuesto = base_imponible + iva_importe
 
-    comprobar_salto_pagina(pdf, 40)
-
-    pdf.ln(3)
-    pdf.set_x(10)
-
-    pdf.set_font("Arial", "", 9)
-    pdf.cell(120, 7, "", border=0)
-    pdf.cell(35, 7, "Base imponible", border=1, align="C")
-    pdf.cell(20, 7, "IVA %", border=1, align="C")
-    pdf.cell(25, 7, "Importe IVA", border=1, align="C")
-    pdf.ln()
-
-    pdf.set_x(10)
-    pdf.cell(120, 7, "", border=0)
-    pdf.cell(35, 7, formato_numero(base_imponible), border=1, align="R")
-    pdf.cell(20, 7, formato_numero(iva_porcentaje), border=1, align="R")
-    pdf.cell(25, 7, formato_numero(iva_importe), border=1, align="R")
-    pdf.ln(10)
-
-    if descuento_porcentaje > 0:
-        pdf.set_x(10)
-        pdf.cell(120, 7, "", border=0)
-        pdf.cell(35, 7, "Descuento", border=1, align="C")
-        pdf.cell(20, 7, formato_numero(descuento_porcentaje) + " %", border=1, align="R")
-        pdf.cell(25, 7, formato_numero(descuento_importe), border=1, align="R")
-        pdf.ln(10)
-
-    pdf.set_x(10)
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(150, 10, "T O T A L   P R E S U P U E S T O", align="R")
-    pdf.cell(40, 10, formato_numero(total_presupuesto), border=1, align="R")
-    pdf.ln(10)
-
-    # =====================================================
-    # SEGUNDA PAGINA - CONDICIONES
-    # =====================================================
+    escribir_totales(
+        pdf,
+        base_imponible,
+        iva_porcentaje,
+        iva_importe,
+        total_presupuesto,
+        descuento_porcentaje,
+        descuento_importe
+    )
 
     pdf.add_page()
+    insertar_cabecera(pdf, datos)
 
-    insertar_cabecera_pdf(pdf, logo, datos, mostrar_cliente=False)
-
-    pdf.set_y(50)
     pdf.set_x(10)
-
-    # Nº de presupuesto y obra encima de Exclusiones
-    pdf.set_font("Arial", "B", 9)
-    linea_segunda_pagina = f"{datos['Nº Presupuesto']} - {datos['Obra']}"
-    pdf.cell(0, 6, texto_seguro(linea_segunda_pagina), ln=True)
-
-    pdf.ln(2)
-    pdf.set_x(10)
-
     pdf.set_font("Arial", "B", 10)
     pdf.cell(0, 6, "Exclusiones:", ln=True)
 
     pdf.set_x(10)
     pdf.set_font("Arial", "", 8)
-    escribir_texto_largo(pdf, datos["Exclusiones"], ancho=185, alto=4)
+    escribir_texto_largo(pdf, datos["Exclusiones"], ancho=190, alto=4)
 
-    pdf.ln(4)
+    pdf.ln(3)
     pdf.set_x(10)
 
     pdf.set_font("Arial", "B", 10)
@@ -570,9 +521,9 @@ def generar_pdf(datos, partidas):
 
     pdf.set_x(10)
     pdf.set_font("Arial", "", 8)
-    escribir_texto_largo(pdf, datos["Condiciones"], ancho=185, alto=4)
+    escribir_texto_largo(pdf, datos["Condiciones"], ancho=190, alto=4)
 
-    pdf.ln(4)
+    pdf.ln(3)
     pdf.set_x(10)
 
     pdf.set_font("Arial", "B", 10)
@@ -580,25 +531,35 @@ def generar_pdf(datos, partidas):
 
     pdf.set_x(10)
     pdf.set_font("Arial", "", 8)
-    escribir_texto_largo(pdf, datos["Proteccion datos"], ancho=185, alto=4)
+    escribir_texto_largo(pdf, datos["Proteccion datos"], ancho=190, alto=4)
 
-    if pdf.get_y() > 235:
-        pdf.add_page()
-        insertar_cabecera_pdf(pdf, logo, datos, mostrar_cliente=False)
-        pdf.set_y(55)
-        pdf.set_x(10)
+    comprobar_salto_pagina(pdf, 30)
+    pdf.ln(6)
 
-    pdf.ln(10)
+    pdf.set_font("Arial", "B", 7.5)
+
     pdf.set_x(10)
+    pdf.cell(0, 4.5, f"Validez de la oferta: {texto_seguro(datos['Validez'])}", ln=True, align="L")
 
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(0, 8, "ACEPTO/CONFORME", ln=True)
-
-    pdf.ln(18)
     pdf.set_x(10)
+    pdf.cell(0, 4.5, f"Forma de pago: {texto_seguro(datos['Forma de pago'])}", ln=True, align="L")
 
-    pdf.set_font("Arial", "", 10)
-    pdf.cell(80, 8, "(FIRMA Y SELLO)", border="T", align="C")
+    pdf.set_x(10)
+    pdf.cell(0, 4.5, "Recogida de pago: 10 dias f. factura", ln=True, align="L")
+
+    pdf.set_x(10)
+    pdf.cell(0, 4.5, "Precios supeditados a revision por subida de precios de Materias Primas.", ln=True, align="L")
+
+    if pdf.get_y() < 230:
+        pdf.set_y(230)
+    else:
+        pdf.ln(6)
+
+    pdf.set_font("Arial", "B", 8)
+    pdf.cell(0, 4, "ACEPTO/CONFORME", ln=True, align="C")
+
+    pdf.set_font("Arial", "", 8)
+    pdf.cell(0, 4, "(FIRMA Y SELLO)", ln=True, align="C")
 
     pdf.output(ruta_pdf)
 
@@ -692,7 +653,7 @@ tabla_hormigon_editada = st.data_editor(
 
 st.subheader("2. Capitulo: OTROS CONCEPTOS DE SUMINISTRO")
 
-st.write("Estos conceptos aparecen siempre por defecto. Para incluir uno en el PDF, pon cantidad mayor que 0.")
+st.write("Estos conceptos aparecen siempre por defecto con cantidad fija 1. Para incluir uno, deja su precio; para no usarlo, pon precio 0.")
 
 if "tabla_otros" not in st.session_state:
     st.session_state["tabla_otros"] = crear_tabla_otros_conceptos()
@@ -701,14 +662,15 @@ tabla_otros_editada = st.data_editor(
     st.session_state["tabla_otros"],
     num_rows="fixed",
     use_container_width=True,
-    disabled=["Codigo", "Concepto"],
+    disabled=["Codigo", "Concepto", "Cantidad"],
     column_config={
         "Codigo": st.column_config.TextColumn("Codigo"),
         "Concepto": st.column_config.TextColumn("Concepto"),
         "Ud.": st.column_config.TextColumn("Ud."),
         "Cantidad": st.column_config.NumberColumn(
             "Cantidad",
-            min_value=0.0,
+            min_value=1.0,
+            max_value=1.0,
             step=1.0,
             format="%.2f"
         ),
@@ -769,17 +731,27 @@ with col1:
     )
 
 with col2:
-    forma_pago = st.text_input("Forma de pago", value="Confirming hasta 120 dias f. factura")
+    forma_pago = st.selectbox(
+        "Forma de pago",
+        options=[
+            "Transferencia a recepcion de factura o Confirming hasta 60 dias f. factura",
+            "Transferencia por suministro",
+            "Transferencia previa suministro",
+            "Transferencia a recepcion de factura o Confirming hasta 90 dias f. factura",
+            "Transferencia a recepcion de factura o Confirming hasta 120 dias f. factura",
+        ],
+        index=0
+    )
 
 validez = st.text_input("Validez de la oferta", value="15 dias naturales")
 
 exclusiones = st.text_area(
     "Exclusiones",
     value=(
-        "Replanteos, seguimientos topograficos, permisos, tasas y/o licencias municipales, "
-        "estudios tecnicos, seguros especificos, avales o fianzas, u otro tipo de gravamenes "
-        "solicitados por los titulares de las vias o solares colindantes a la obra o titulares "
-        "de los servicios y/o suministros afectados por la obra."
+        "Replanteos, seguimientos topograficos (si incluye las mediciones mensuales, parciales o finales), "
+        "permisos, tasas y/o licencias municipales, estudios tecnicos, seguros especificos, avales o fianzas, "
+        "u otro tipo de gravamenes solicitados por los titulares de las vias o solares colindantes a la obra "
+        "o titulares de los servicios y/o suministros afectados por la obra."
     ),
     height=100
 )
@@ -787,28 +759,33 @@ exclusiones = st.text_area(
 condiciones = st.text_area(
     "Condiciones y reservas",
     value=(
-        "El presente presupuesto, en caso de ser aceptado, debe ser devuelto por email "
-        "debidamente firmado y sellado, sirviendo el mismo como pedido aceptado o posterior contrato.\n\n"
-        f"Validez de la oferta: {validez}.\n"
-        f"Forma de pago: {forma_pago}.\n"
-        "Precios supeditados a revision por subida de precios de materias primas.\n\n"
-        "El cliente se compromete a comunicar a la empresa HITAMARIN IBERICA SLU la ubicacion de las acometidas "
-        "y/o servicios afectados en el terreno, asi como cualquier particularidad no detallada en la documentacion aportada.\n\n"
-        "El inicio de los trabajos objeto del presente presupuesto debera ser comunicado por el cliente con el tiempo necesario "
-        "para garantizar la correcta organizacion y ejecucion de los mismos."
+        "El presente presupuesto en caso de ser aceptado, debe ser devuelto por Fax/email debidamente firmado "
+        "y sellado, sirviendo el mismo como pedido aceptado o posterior contrato entre ambos.\n\n"
+        "El cliente se compromete a comunicar a la empresa HITAMARIN IBERICA SL, la ubicacion de las acometidas "
+        "y/o servicios afectados en el terreno, asi como cualquier particularidad no detallada en la documentacion aportada. "
+        "En el caso de ocurrir incidencias en obra a causa de dicha falta de documentacion, los gastos ocasionados por "
+        "desperfectos o averias, a propios o terceros, correran a cargo del cliente.\n\n"
+        "Sera facilitada por el Cliente la documentacion necesaria para que la empresa HITAMARIN IBERICA SL, desarrolle "
+        "convenientemente su actividad. En caso de no ser facilitados o ser erroneos, esta empresa declina toda responsabilidad.\n\n"
+        "El inicio de los trabajos objeto del presente presupuesto, deberan ser comunicados por el Cliente, con el tiempo "
+        "necesario para que se pueda garantizar la correcta organizacion y ejecucion de los mismos."
     ),
-    height=180
+    height=220
 )
 
 proteccion_datos = st.text_area(
     "Proteccion de datos",
     value=(
-        "HITAMARIN IBERICA SLU es responsable del tratamiento de los datos facilitados, cuya finalidad es prestar "
-        "el servicio contratado y realizar la facturacion del mismo. Los datos se conservaran mientras se mantenga "
-        "la relacion comercial o durante los anos necesarios para cumplir con las obligaciones legales. "
-        "Puede ejercer sus derechos de acceso, rectificacion, supresion, limitacion y oposicion conforme a la normativa vigente."
+        "HITAMARIN IBERICA SL. con direccion en CTRA BEAS DE GRANADA KM 1, HUETOR SANTILLAN, 18183, GRANADA "
+        "es responsable del tratamiento de los datos que nos ha facilitado cuya finalidad es prestarles el servicio contratado "
+        "y realizar la facturacion del mismo. El tratamiento de sus datos se basa en la ejecucion de un contrato, los conservaremos "
+        "mientras se mantenga la relacion comercial o durante los anos necesarios para cumplir con las obligaciones legales. "
+        "Sus datos no se cederan a terceros salvo en los casos en que exista una obligacion legal. Puede ejercer sus derechos "
+        "de acceso, rectificacion, supresion, limitacion y oposicion al tratamiento asi como otros derechos como se explica "
+        "en la informacion adicional. Puede consultar la informacion adicional y detallada de proteccion de datos en nuestra "
+        "pagina web: https://hitamarin.com/aviso-legal"
     ),
-    height=120
+    height=160
 )
 
 st.divider()
